@@ -1,10 +1,350 @@
-<!doctype html>
-<html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>つかプロ — かたちで動かすロボット</title><meta name="description" content="つくった形が、ロボットのことばになる。手作りブロックを読み取るプログラミング工作室。"><link rel="stylesheet" href="style.css"></head>
-<body><header><a class="brand" href="./"><span class="brand-icon">つ</span>つかプロ<span class="brand-sub">かたちの工作室 / OpenCV認識</span></a><button id="connectTop" class="connection"><span id="connectionDot"></span><span id="connectionText">ロボット未接続</span></button></header>
-<main><section class="hero"><div><div class="eyebrow">図画工作 × プログラミング</div><h1>きみの「かたち」で、<br>ロボットが動きだす。</h1><p>つくって、ならべて、読みとろう。<br>世界にひとつのブロックが、ロボットのことばになる。</p></div><div class="hero-art" aria-hidden="true"><span class="orbit">CREATE → SCAN → MOVE</span><div class="paper p1">↑</div><div class="paper p2">↱</div><div class="paper p3">■</div><span class="art-note">手づくりが、プログラムに。</span></div></section>
-<nav class="steps" aria-label="使い方"><button data-tab="scan" class="active"><b>01</b> ブロックを読みとる</button><button data-tab="library"><b>02</b> かたちを登録</button><button data-tab="settings"><b>03</b> ロボットをつなぐ</button></nav>
-<section id="scan" class="tab active"><div class="workspace"><article class="panel camera-panel"><div class="panel-head"><div><span class="eyebrow">SCAN YOUR BLOCKS</span><h2>ならべた形を読みとろう</h2></div><span id="visionBadge" class="badge">OpenCVを準備中</span></div><div class="viewfinder"><video id="video" autoplay playsinline muted hidden></video><canvas id="canvas" width="900" height="600" hidden></canvas><div id="emptyView"><div class="scan-mark">⌗</div><h3>ここに、きみのプログラムを。</h3><p>木目の机か暗い台紙に、白いブロックを<br>つないだまま、上から下へならべてね。</p><button id="camera" class="primary">カメラをはじめる</button><label class="file-link">写真をえらぶ<input id="photo" type="file" accept="image/*" hidden></label></div></div><div class="camera-actions"><button id="capture" class="primary" disabled>撮影して読みとる</button><button id="retake">カメラに戻る</button><label class="file-button">写真をえらぶ<input id="photo2" type="file" accept="image/*" hidden></label></div><details class="scan-options"><summary>読み取りの調整</summary><label><input id="autoThreshold" type="checkbox" checked> OpenCVで白いブロックを自動抽出</label><label><input id="touchingMode" type="checkbox" checked> つながった縦列を自動分割</label><label>手動の明るさの境界 <input id="threshold" type="range" min="30" max="240" value="145"><output id="thresholdValue">145</output></label><label>読み取り順 <select id="order"><option value="vertical">上から下</option><option value="horizontal">左から右</option></select></label><button id="rescan">同じ写真でもう一度読む</button><p>OpenCVで白領域を抽出し、縦長の輪郭をブロックの高さから分割します。重なりが大きい場合は要確認になります。</p></details></article>
-<article class="panel program-panel"><div class="panel-head"><div><span class="eyebrow">YOUR PROGRAM</span><h2>ロボットへのことば</h2></div><span id="count" class="badge">0 ブロック</span></div><p class="muted">読み取り結果をたしかめてから、動かそう。</p><ol id="program"></ol><div id="programEmpty"><span>↑　↱　■</span><p>読みとったブロックが<br>ここにならびます。</p></div><div class="manual"><select id="manualCommand" aria-label="追加する命令"></select><button id="add">＋ 手で追加</button><button id="clear" class="text-button">クリア</button></div><div class="run-settings"><label>動く時間 <input id="duration" type="number" min="100" max="3000" step="100" value="500"> ms</label><label>速さ <input id="speed" type="range" min="50" max="200" value="120"><output id="speedValue">120</output></label></div><div class="run-actions"><button id="run" class="primary" disabled>▶ ロボットを動かす</button><button id="stop" class="stop">■ 停止</button></div><button id="simulate" class="text-button">接続せずに順番をたしかめる</button><div id="status" role="status" aria-live="polite">写真の4種類は登録済み。前進・後退・左・右を読み取れます。</div></article></div><aside class="hint"><b>きれいに読みとるコツ</b><span>① 白いブロックを使う</span><span>② まっすぐつなぐ</span><span>③ 真上から撮る</span><span>④ 凸を上にそろえる</span></aside></section>
-<section id="library" class="tab"><div class="panel"><span class="eyebrow">SHAPE LIBRARY</span><h2>つくった形に、ことばをあげよう。</h2><p class="muted">いただいた4形状は登録済みです。木目の机または暗い台紙に白いブロックを1個置き、写真を追加すると、照明や撮影条件の違いも最大5枚まで覚えられます。内側の文字ではなく外形を比較します。</p><div id="libraryCards" class="library-grid"></div><div class="library-tools"><button id="restoreShapes">写真の4形状に戻す</button><button id="export">登録データを保存</button><label class="file-button">登録データを読み込む<input id="import" type="file" accept="application/json,.json" hidden></label></div><p class="muted">登録内容はこのブラウザに保存されます。学校の端末で消去される場合に備えて、データを保存できます。</p></div></section>
-<section id="settings" class="tab"><div class="settings-grid"><article class="panel"><span class="eyebrow">CONNECT YOUR ROBOT</span><h2>ロボットのWi-Fiにつなごう。</h2><ol class="instructions"><li>このサイトをインターネット接続中に一度開く。</li><li>ChromebookのWi-Fiを <b>TsukaPro-Robot</b> に変更。</li><li>パスワード <b>tsukapro2026</b> を入力。</li><li>この画面へ戻り「接続をたしかめる」を押す。</li></ol><label class="field">ロボットの固定アドレス<input id="address" value="192.168.4.1" readonly></label><label class="field">接続キー<input id="key" value="tsukapro" autocomplete="off"></label><button id="connect" class="primary">接続をたしかめる</button><p id="connectMessage" role="status">Arduinoを書き込んで電源を入れると、ロボット自身がWi-Fiを作ります。</p><p class="muted">ロボットのWi-Fiにはインターネット接続がありません。「接続を維持」を選んでください。サイトは初回表示後にオフライン保存されます。</p></article><article class="panel"><span class="eyebrow">GET STARTED</span><h2>Arduinoの準備</h2><ol class="instructions"><li>下の新しいプログラムをダウンロード。</li><li>配線は設定済み：PWMA D2・AIN1 D4・AIN2 D3・PWMB D7・BIN1 D5・BIN2 D6・STBY 5V。</li><li>必要ならプログラム先頭のWi-Fi名・パスワード・接続キーを変更。</li><li>UNO R4 WiFiへ書き込む。ロボットのIPは <b>192.168.4.1</b>。</li><li>初回は車輪を浮かせ、短い命令で向きを確認。</li></ol><a class="download" href="RobotController.ino" download>↓ Arduinoプログラム (.ino)</a><a class="download secondary" href="README.md" download>↓ 設定・使い方ガイド</a><p class="muted">秒数で動かす試作版です。距離や角度を正確に指定するには、機体に合わせた調整が必要です。</p></article></div></section>
-<footer><span class="brand-small">つかプロ / SHAPE LAB</span><span>つくる楽しさを、動くよろこびへ。</span></footer></main><script src="opencv-adapter.js"></script><script src="vision.js"></script><script src="default-shapes.js"></script><script src="app.js"></script></body></html>
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>連結ブロック 台形補正AI認識コントローラー</title>
+  
+  <!-- 1. OpenCV.js 初期化設定（必ずスクリプト読み込み前に記述） -->
+  <script>
+    var Module = {
+      onRuntimeInitialized: function() {
+        console.log("OpenCV.js 準備完了");
+        const statusEl = document.getElementById("cvStatus");
+        if (statusEl) {
+          statusEl.innerText = "🟢 OpenCV準備完了";
+          statusEl.className = "badge badge-success";
+        }
+      }
+    };
+  </script>
+  <script async src="https://cdn.jsdelivr.net/npm/@techstark/opencv-js@4.10.0-release.1/opencv.js"></script>
+
+  <!-- 2. TensorFlow.js & Teachable Machine -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+
+  <style>
+    body { font-family: 'Helvetica Neue', Arial, sans-serif; text-align: center; background: #f4f7f6; margin: 0; padding: 20px; color: #333; }
+    h1 { font-size: 22px; margin-bottom: 5px; }
+    .subtitle { color: #666; font-size: 13px; margin-bottom: 20px; }
+    
+    .container { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; max-width: 1000px; margin: 0 auto; }
+    .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); flex: 1; min-width: 320px; text-align: left; }
+    .card h3 { margin-top: 0; border-bottom: 2px solid #eee; padding-bottom: 8px; font-size: 16px; color: #2c3e50; }
+
+    .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+    .badge-success { background: #d4edda; color: #155724; }
+    .badge-danger { background: #f8d7da; color: #721c24; }
+    .badge-warning { background: #fff3cd; color: #856404; }
+
+    button { padding: 10px 18px; font-size: 14px; font-weight: bold; border-radius: 6px; border: none; cursor: pointer; margin: 4px 0; transition: 0.2s; }
+    .btn-primary { background: #28a745; color: white; width: 100%; }
+    .btn-primary:hover { background: #218838; }
+    .btn-blue { background: #007bff; color: white; width: 100%; }
+    .btn-blue:hover { background: #0069d9; }
+    .btn-danger { background: #dc3545; color: white; }
+    button:disabled { background: #cccccc !important; cursor: not-allowed; }
+
+    input[type="text"] { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; margin: 8px 0; }
+
+    .video-box { position: relative; width: 100%; max-width: 400px; margin: 0 auto; border-radius: 8px; overflow: hidden; background: #000; }
+    video { width: 100%; display: block; }
+    canvas.overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+
+    .preview-box { display: flex; gap: 10px; justify-content: center; margin-top: 10px; flex-wrap: wrap; }
+    .preview-card { border: 1px solid #ddd; border-radius: 6px; padding: 5px; background: #fff; text-align: center; }
+    .preview-card canvas { width: 70px; height: 70px; object-fit: contain; background: #eee; }
+
+    .command-stack { display: flex; flex-direction: column; gap: 8px; margin-top: 15px; min-height: 80px; padding: 10px; background: #fafafa; border: 2px dashed #ddd; border-radius: 8px; }
+    .cmd-item { display: flex; align-items: center; justify-content: space-between; background: white; padding: 10px 15px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border-left: 5px solid #007bff; }
+    
+    #logText { font-family: monospace; font-size: 12px; color: #555; background: #eef; padding: 8px; border-radius: 4px; margin-top: 10px; }
+  </style>
+</head>
+<body>
+
+  <h1>🤖 連結ブロック 台形補正AI認識コントローラー</h1>
+  <p class="subtitle">OpenCVでブロック輪郭を自動検出 ➔ 台形補正（透視変換）で正対化 ➔ TMで1個ずつ精密度判定</p>
+
+  <div class="container">
+    <div class="card">
+      <h3>1. 接続 & AIモデル設定</h3>
+      <p>OpenCV: <span id="cvStatus" class="badge badge-warning">読み込み中...</span></p>
+      <p>ロボット: <span id="bleStatus" class="badge badge-danger">未接続</span></p>
+      
+      <button class="btn-blue" onclick="connectBLE()">Bluetooth接続 (Uto_Robot_01)</button>
+      <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
+
+      <label style="font-size:12px; font-weight:bold;">Teachable Machine モデルURL:</label>
+      <input type="text" id="modelUrl" placeholder="https://teachablemachine.withgoogle.com/models/XXXXX/">
+      <button class="btn-primary" onclick="loadModel()">カメラ & AIモデル起動</button>
+    </div>
+
+    <div class="card">
+      <h3>2. ブロック撮影 & 一括読み取り</h3>
+      <div class="video-box">
+        <video id="webcam" autoplay playsinline muted></video>
+        <canvas id="canvasOverlay" class="overlay"></canvas>
+      </div>
+
+      <button id="scanBtn" class="btn-blue" style="margin-top: 12px; font-size: 16px;" onclick="scanWithPerspectiveWarp()" disabled>
+        📐 台形補正 ➔ 切り出してTM判定
+      </button>
+
+      <!-- 補正後の各ブロックプレビュー表示 -->
+      <div id="previewArea" class="preview-box"></div>
+      <div id="logText">GitHub Pagesで実行準備中...</div>
+    </div>
+  </div>
+
+  <div class="container" style="margin-top: 20px;">
+    <div class="card" style="width: 100%;">
+      <h3>3. 認識された命令シーケンス（上から順）</h3>
+      <div id="commandStack" class="command-stack">
+        <div style="text-align:center; color:#aaa; margin-top:20px;">
+          「台形補正 ➔ 切り出してTM判定」を押してください
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 10px; margin-top: 15px;">
+        <button class="btn-danger" style="flex: 1;" onclick="clearCommands()">クリア</button>
+        <button id="runBtn" class="btn-primary" style="flex: 2; font-size: 18px;" onclick="runProgram()" disabled>
+          ▶ プログラム実行！
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <canvas id="workCanvas" style="display:none;"></canvas>
+  <canvas id="warpedCanvas" style="display:none;"></canvas>
+
+  <script>
+    const SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+    const CHARACTERISTIC_UUID_RX = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
+
+    let rxCharacteristic = null;
+    let model = null;
+    let webcamElement = document.getElementById("webcam");
+    let commandQueue = [];
+
+    function log(msg) {
+      document.getElementById("logText").innerText = msg;
+      console.log(msg);
+    }
+
+    // --- Web Bluetooth ---
+    async function connectBLE() {
+      try {
+        const device = await navigator.bluetooth.requestDevice({
+          filters: [{ name: "Uto_Robot_01" }],
+          optionalServices: [SERVICE_UUID]
+        });
+        const server = await device.gatt.connect();
+        const service = await server.getPrimaryService(SERVICE_UUID);
+        rxCharacteristic = await service.getCharacteristic(CHARACTERISTIC_UUID_RX);
+
+        const statusEl = document.getElementById("bleStatus");
+        statusEl.innerText = "🟢 接続完了";
+        statusEl.className = "badge badge-success";
+        document.getElementById("runBtn").disabled = false;
+        log("ロボット (Uto_Robot_01) 接続成功！");
+      } catch (e) { log("接続エラー: " + e.message); }
+    }
+
+    async function sendCommand(cmd) {
+      if (!rxCharacteristic) return;
+      await rxCharacteristic.writeValue(new TextEncoder().encode(cmd));
+    }
+
+    // --- AIモデル & カメラ起動 ---
+    async function loadModel() {
+      let url = document.getElementById("modelUrl").value.trim();
+      if (!url) { alert("Teachable MachineのモデルURLを入力してください"); return; }
+      if (!url.endsWith("/")) url += "/";
+
+      try {
+        log("AIモデルを読み込み中...");
+        model = await tmImage.load(url + "model.json", url + "metadata.json");
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+        webcamElement.srcObject = stream;
+
+        webcamElement.onloadedmetadata = () => {
+          document.getElementById("canvasOverlay").width = webcamElement.videoWidth;
+          document.getElementById("canvasOverlay").height = webcamElement.videoHeight;
+          document.getElementById("scanBtn").disabled = false;
+          log("カメラ＆AIモデル準備OK！ブロックを映して「台形補正」を押してください");
+        };
+      } catch (e) { alert("モデル読み込み失敗: " + e.message); }
+    }
+
+    // --- 📐 OpenCVによる台形補正 (Perspective Transform) ＋ TM判定 ---
+    async function scanWithPerspectiveWarp() {
+      if (!model) { alert("先にAIモデルを起動してください"); return; }
+      if (typeof cv === 'undefined' || !cv.Mat) { alert("OpenCVの読み込み完了まで少々お待ちください"); return; }
+
+      log("ブロック領域の自動検出 & 台形補正処理を実行中...");
+      const vw = webcamElement.videoWidth;
+      const vh = webcamElement.videoHeight;
+
+      const workCanvas = document.getElementById("workCanvas");
+      workCanvas.width = vw;
+      workCanvas.height = vh;
+      const ctx = workCanvas.getContext("2d");
+      ctx.drawImage(webcamElement, 0, 0, vw, vh);
+
+      let src = cv.imread(workCanvas);
+      let gray = new cv.Mat();
+      let blur = new cv.Mat();
+      let thresh = new cv.Mat();
+      let contours = new cv.MatVector();
+      let hierarchy = new cv.Mat();
+
+      // 画像の前処理
+      cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
+      cv.GaussianBlur(gray, blur, new cv.Size(5, 5), 0);
+      cv.adaptiveThreshold(blur, thresh, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, 15, 3);
+      cv.findContours(thresh, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+      // 一番大きな輪郭（繋がったブロックの外枠）を抽出
+      let maxArea = 0;
+      let maxContour = null;
+      for (let i = 0; i < contours.size(); ++i) {
+        let cnt = contours.get(i);
+        let area = cv.contourArea(cnt);
+        if (area > maxArea && area > (vw * vh * 0.05)) {
+          maxArea = area;
+          maxContour = cnt;
+        }
+      }
+
+      const warpedCanvas = document.getElementById("warpedCanvas");
+      const targetW = 200;
+      const targetH = 600;
+      warpedCanvas.width = targetW;
+      warpedCanvas.height = targetH;
+
+      if (maxContour) {
+        // 4角を検出して頂点ソート (左上, 右上, 右下, 左下)
+        let rotatedRect = cv.minAreaRect(maxContour);
+        let vertices = cv.RotatedRect.points(rotatedRect);
+
+        vertices.sort((a, b) => a.y - b.y);
+        let topTwo = vertices.slice(0, 2).sort((a, b) => a.x - b.x);
+        let bottomTwo = vertices.slice(2, 4).sort((a, b) => a.x - b.x);
+
+        let srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
+          topTwo[0].x, topTwo[0].y,
+          topTwo[1].x, topTwo[1].y,
+          bottomTwo[1].x, bottomTwo[1].y,
+          bottomTwo[0].x, bottomTwo[0].y
+        ]);
+
+        let dstTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
+          0, 0,
+          targetW, 0,
+          targetW, targetH,
+          0, targetH
+        ]);
+
+        let M = cv.getPerspectiveTransform(srcTri, dstTri);
+        let dst = new cv.Mat();
+        cv.warpPerspective(src, dst, M, new cv.Size(targetW, targetH));
+        cv.imshow(warpedCanvas, dst);
+
+        M.delete(); srcTri.delete(); dstTri.delete(); dst.delete();
+      } else {
+        // 自動検出失敗時は画面中央領域を切出
+        const wCtx = warpedCanvas.getContext("2d");
+        wCtx.drawImage(workCanvas, vw*0.25, vh*0.1, vw*0.5, vh*0.8, 0, 0, targetW, targetH);
+      }
+
+      src.delete(); gray.delete(); blur.delete(); thresh.delete(); contours.delete(); hierarchy.delete();
+
+      // --- 4段に分割して1個ずつTM判定 ---
+      const blockCount = 4;
+      const blockH = targetH / blockCount;
+      const previewArea = document.getElementById("previewArea");
+      previewArea.innerHTML = "";
+      commandQueue = [];
+
+      for (let i = 0; i < blockCount; i++) {
+        let singleCanvas = document.createElement("canvas");
+        singleCanvas.width = targetW;
+        singleCanvas.height = blockH;
+        let sCtx = singleCanvas.getContext("2d");
+
+        sCtx.drawImage(warpedCanvas, 0, i * blockH, targetW, blockH, 0, 0, targetW, blockH);
+
+        const prediction = await model.predict(singleCanvas);
+        let highestProb = 0;
+        let bestClass = "背景";
+
+        for (let p = 0; p < prediction.length; p++) {
+          if (prediction[p].probability > highestProb) {
+            highestProb = prediction[p].probability;
+            bestClass = prediction[p].className;
+          }
+        }
+
+        let card = document.createElement("div");
+        card.className = "preview-card";
+        card.appendChild(singleCanvas);
+        card.innerHTML += `<div style="font-size:11px; font-weight:bold; margin-top:2px;">${i+1}. ${bestClass}</div>`;
+        previewArea.appendChild(card);
+
+        if (!bestClass.includes("背景") && !bestClass.toLowerCase().includes("background") && highestProb > 0.3) {
+          commandQueue.push(bestClass);
+        }
+      }
+
+      updateCommandUI();
+      log(`台形補正完了！${commandQueue.length}個のブロック命令を判定しました。`);
+    }
+
+    function updateCommandUI() {
+      const stackEl = document.getElementById("commandStack");
+      stackEl.innerHTML = "";
+      if (commandQueue.length === 0) {
+        stackEl.innerHTML = '<div style="text-align:center; color:#aaa; margin-top:20px;">有効なブロック命令が認識されませんでした</div>';
+        return;
+      }
+      commandQueue.forEach((cmd, idx) => {
+        const item = document.createElement("div");
+        item.className = "cmd-item";
+        item.innerHTML = `<div><span style="font-weight:bold; color:#888;">${idx + 1}.</span> <span style="font-weight:bold;">${cmd}</span></div>`;
+        stackEl.appendChild(item);
+      });
+    }
+
+    function clearCommands() {
+      commandQueue = [];
+      updateCommandUI();
+      document.getElementById("previewArea").innerHTML = "";
+      log("クリアしました");
+    }
+
+    async function runProgram() {
+      if (commandQueue.length === 0) return;
+      log("送信・実行開始...");
+
+      for (let i = 0; i < commandQueue.length; i++) {
+        let cmdName = commandQueue[i];
+        let code = 'S';
+
+        if (cmdName.includes("前進") || cmdName.toLowerCase().includes("forward")) code = 'F';
+        else if (cmdName.includes("後退") || cmdName.toLowerCase().includes("back")) code = 'B';
+        else if (cmdName.includes("左") || cmdName.toLowerCase().includes("left")) code = 'L';
+        else if (cmdName.includes("右") || cmdName.toLowerCase().includes("right")) code = 'R';
+
+        log(`[ステップ ${i + 1}/${commandQueue.length}] 実行中: ${cmdName} (${code})`);
+        await sendCommand(code);
+        await new Promise(r => setTimeout(r, 1200));
+        await sendCommand('S');
+        await new Promise(r => setTimeout(r, 300));
+      }
+      log("🎉 全プログラムの実行が完了しました！");
+    }
+  </script>
+</body>
+</html>
