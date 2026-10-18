@@ -5,19 +5,42 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>OpenCV 画像認識デバッグ & パラメータ調整ツール</title>
 
-  <!-- OpenCV.js 読み込み -->
+  <!-- OpenCV.js 読み込み（リポジトリ内の opencv.js / opencv.wasm を直接使用） -->
   <script>
     var cvReady = false;
+
+    function checkCvReady() {
+      if (typeof cv !== 'undefined' && cv.Mat) {
+        if (!cvReady) {
+          cvReady = true;
+          const statusEl = document.getElementById("cvStatus");
+          if (statusEl) {
+            statusEl.innerText = "🟢 OpenCV準備完了";
+            statusEl.style.background = "#d4edda";
+            statusEl.style.color = "#155724";
+          }
+          console.log("OpenCV ready!");
+        }
+        return true;
+      }
+      return false;
+    }
+
     var Module = {
       onRuntimeInitialized: function() {
-        cvReady = true;
-        document.getElementById("cvStatus").innerText = "🟢 OpenCV準備完了";
-        document.getElementById("cvStatus").style.background = "#d4edda";
-        console.log("OpenCV ready");
+        checkCvReady();
       }
     };
+
+    // 0.3秒おきに初期化完了を検出するフォールバック処理
+    const timer = setInterval(function() {
+      if (checkCvReady()) {
+        clearInterval(timer);
+      }
+    }, 300);
   </script>
-  <script async src="https://cdn.jsdelivr.net/npm/@techstark/opencv-js@4.10.0-release.1/opencv.js"></script>
+  <!-- 外部CDNではなく、リポジトリ直下の opencv.js を直接読み込む -->
+  <script async src="./opencv.js"></script>
 
   <style>
     body { font-family: sans-serif; background: #1e1e1e; color: #fff; margin: 0; padding: 20px; text-align: center; }
@@ -103,7 +126,7 @@
         webcamEl.srcObject = stream;
         webcamEl.onloadedmetadata = () => {
           console.log("Camera started");
-          toggleAutoLoop();
+          if (!isLooping) toggleAutoLoop();
         };
       } catch (e) {
         alert("カメラの起動に失敗しました: " + e.message);
@@ -123,14 +146,13 @@
       requestAnimationFrame(loop);
     }
 
-    // --- 🔍 OpenCV パイプライン処理 ---
+    // --- OpenCV パイプライン処理 ---
     function processFrame() {
       if (!cvReady || !webcamEl.videoWidth) return;
 
       const vw = webcamEl.videoWidth;
       const vh = webcamEl.videoHeight;
 
-      // 1. 作業用キャンバス描画
       let srcCanvas = document.createElement("canvas");
       srcCanvas.width = vw;
       srcCanvas.height = vh;
@@ -144,20 +166,18 @@
       let contours = new cv.MatVector();
       let hierarchy = new cv.Mat();
 
-      // パラメータ取得
       let blockSize = parseInt(document.getElementById("paramBlockSize").value);
       let cVal = parseInt(document.getElementById("paramC").value);
       let minAreaPct = parseInt(document.getElementById("paramMinArea").value) / 100.0;
 
-      // 工程1: グレースケール ➔ ブラー ➔ 二値化
+      // グレースケール ➔ ブラー ➔ 二値化
       cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
       cv.GaussianBlur(gray, blur, new cv.Size(5, 5), 0);
       cv.adaptiveThreshold(blur, thresh, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, blockSize, cVal);
 
-      // ② 二値化画像の描画
       cv.imshow(document.getElementById("canvasThresh"), thresh);
 
-      // 工程2: 輪郭検出
+      // 輪郭検出
       cv.findContours(thresh, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
 
       let maxArea = 0;
@@ -173,7 +193,6 @@
         }
       }
 
-      // 工程3: 最も大きな輪郭（ブロック全域）の描画
       let contoursDst = src.clone();
       const warpedCanvas = document.getElementById("canvasWarped");
       const targetW = 200, targetH = 600;
@@ -184,18 +203,15 @@
         let rotatedRect = cv.minAreaRect(maxContour);
         let vertices = cv.RotatedRect.points(rotatedRect);
 
-        // 輪郭線（赤色）を描画
         let ptsVector = new cv.MatVector();
         ptsVector.push_back(maxContour);
         cv.drawContours(contoursDst, ptsVector, -1, new cv.Scalar(255, 0, 0, 255), 3);
         ptsVector.delete();
 
-        // 4角の頂点（青丸）を描画
         for (let i = 0; i < 4; i++) {
           cv.circle(contoursDst, vertices[i], 8, new cv.Scalar(0, 0, 255, 255), -1);
         }
 
-        // 工程4: 台形補正 (透視変換)
         vertices.sort((a, b) => a.y - b.y);
         let topTwo = vertices.slice(0, 2).sort((a, b) => a.x - b.x);
         let bottomTwo = vertices.slice(2, 4).sort((a, b) => a.x - b.x);
@@ -216,7 +232,6 @@
         cv.warpPerspective(src, warpedMat, M, new cv.Size(targetW, targetH));
         cv.imshow(warpedCanvas, warpedMat);
 
-        // 4分割プレビュー描画
         let previewDiv = document.getElementById("splitPreviews");
         previewDiv.innerHTML = "";
         let blockH = targetH / 4;
@@ -232,7 +247,6 @@
 
         M.delete(); srcTri.delete(); dstTri.delete(); warpedMat.delete();
       } else {
-        // 検出失敗時は画面にメッセージ表示
         let wCtx = warpedCanvas.getContext("2d");
         wCtx.fillStyle = "#333";
         wCtx.fillRect(0, 0, targetW, targetH);
@@ -241,10 +255,8 @@
         wCtx.fillText("ブロック枠が検出できません", 10, 50);
       }
 
-      // ③ 輪郭付き画像の描画
       cv.imshow(document.getElementById("canvasContours"), contoursDst);
 
-      // メモリ解放
       src.delete(); gray.delete(); blur.delete(); thresh.delete();
       contours.delete(); hierarchy.delete(); contoursDst.delete();
     }
