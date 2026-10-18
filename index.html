@@ -5,22 +5,34 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>連結ブロック 台形補正AI認識コントローラー</title>
   
-  <!-- 1. OpenCV.js 初期化設定（必ずスクリプト読み込み前に記述） -->
+  <!-- 1. OpenCV.js 初期化 & 自動検知設定 -->
   <script>
+    function markCvReady() {
+      const statusEl = document.getElementById("cvStatus");
+      if (statusEl && !statusEl.innerText.includes("準備完了")) {
+        statusEl.innerText = "🟢 OpenCV準備完了";
+        statusEl.className = "badge badge-success";
+        console.log("OpenCV.js 準備完了！");
+      }
+    }
+
     var Module = {
       onRuntimeInitialized: function() {
-        console.log("OpenCV.js 準備完了");
-        const statusEl = document.getElementById("cvStatus");
-        if (statusEl) {
-          statusEl.innerText = "🟢 OpenCV準備完了";
-          statusEl.className = "badge badge-success";
-        }
+        markCvReady();
       }
     };
+
+    // 0.5秒おきにOpenCVのロード完了をチェックするフォールバック処理
+    const checkCvInterval = setInterval(function() {
+      if (typeof cv !== 'undefined' && cv.Mat) {
+        markCvReady();
+        clearInterval(checkCvInterval);
+      }
+    }, 500);
   </script>
   <script async src="https://cdn.jsdelivr.net/npm/@techstark/opencv-js@4.10.0-release.1/opencv.js"></script>
 
-  <!-- 2. TensorFlow.js & Teachable Machine -->
+  <!-- 2. TensorFlow.js & Teachable Machine ライブラリ -->
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
 
@@ -94,7 +106,7 @@
 
       <!-- 補正後の各ブロックプレビュー表示 -->
       <div id="previewArea" class="preview-box"></div>
-      <div id="logText">GitHub Pagesで実行準備中...</div>
+      <div id="logText">準備完了！カメラを起動してください</div>
     </div>
   </div>
 
@@ -133,7 +145,7 @@
       console.log(msg);
     }
 
-    // --- Web Bluetooth ---
+    // --- Web Bluetooth 接続 ---
     async function connectBLE() {
       try {
         const device = await navigator.bluetooth.requestDevice({
